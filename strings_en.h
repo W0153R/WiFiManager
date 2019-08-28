@@ -50,6 +50,10 @@ const char HTTP_SCAN_LINK[]        PROGMEM = "<br/><form action='/wifi?refresh=1
 const char HTTP_SAVED[]            PROGMEM = "<div class='msg'>Saving Credentials<br/>Trying to connect ESP to network.<br />If it fails reconnect to AP to try again</div>";
 const char HTTP_PARAMSAVED[]       PROGMEM = "<div class='msg'>Saved<br/></div>";
 const char HTTP_END[]              PROGMEM = "</div></body></html>";
+const char HTTP_UPDATEBTN[]        PROGMEM = "<br/><form action='/update' method='get'><button>Update</button></form>";
+const char HTTP_UPDATEFORM[]       PROGMEM = "<form method='POST' action='' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>";
+const char HTTP_UPDATEFAILED[]     PROGMEM = "<p>Update Failed! Rebooting...</p>";
+const char HTTP_UPDATESUCCES[]     PROGMEM = "<p>Update Success! Rebooting...</p>";
 const char HTTP_ERASEBTN[]         PROGMEM = "<br/><form action='/erase' method='get'><button class='D'>Erase WiFi Config</button></form>";
 
 const char HTTP_STATUS_ON[]        PROGMEM = "<div class='msg P'><strong>Connected</strong> to {v}<br/><em><small>with IP {i}</small></em></div>";
@@ -187,6 +191,7 @@ const char S_titleparam[]         PROGMEM = "Setup";
 const char S_titleparamsaved[]    PROGMEM = "Setup Saved";
 const char S_titleexit[]          PROGMEM = "Exit";
 const char S_titlereset[]         PROGMEM = "Reset";
+const char S_titleupdate[]        PROGMEM = "Update";
 const char S_titleerase[]         PROGMEM = "Erase";
 const char S_titleclose[]         PROGMEM = "Close";
 const char S_options[]            PROGMEM = "options";
@@ -237,6 +242,7 @@ const char R_paramsave[]          PROGMEM = "/paramsave";
 const char R_restart[]            PROGMEM = "/restart";
 const char R_exit[]               PROGMEM = "/exit";
 const char R_close[]              PROGMEM = "/close";
+const char R_update[]             PROGMEM = "/update";
 const char R_erase[]              PROGMEM = "/erase"; 
 const char R_status[]             PROGMEM = "/status";
 
@@ -328,3 +334,4 @@ const wifi_country_t WM_COUNTRY_US{"US",1,11,WIFI_COUNTRY_POLICY_AUTO};
 const wifi_country_t WM_COUNTRY_CN{"CN",1,13,WIFI_COUNTRY_POLICY_AUTO};
 const wifi_country_t WM_COUNTRY_JP{"JP",1,14,WIFI_COUNTRY_POLICY_AUTO};
 #endif
+

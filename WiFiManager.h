@@ -93,6 +93,8 @@
 #include <memory>
 #include "strings_en.h"
 
+#include <Update.h>
+
 #ifndef WIFI_MANAGER_MAX_PARAMS
     #define WIFI_MANAGER_MAX_PARAMS 5 // params will autoincrement and realloc by this amount when max is reached
 #endif
@@ -399,6 +401,8 @@ class WiFiManager
     void          handleNotFound();
     void          handleExit();
     void          handleClose();
+    void          handleUpdate(boolean getRequest);
+    void          handleUpdateUpload();
     // void          handleErase();
     void          handleErase(boolean opt);
     void          handleParam();

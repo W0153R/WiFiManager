@@ -488,6 +488,8 @@ void WiFiManager::setupConfigPortal() {
   server->on(String(FPSTR(R_restart)).c_str(),    std::bind(&WiFiManager::handleReset, this));
   server->on(String(FPSTR(R_exit)).c_str(),       std::bind(&WiFiManager::handleExit, this));
   server->on(String(FPSTR(R_close)).c_str(),      std::bind(&WiFiManager::handleClose, this));
+  server->on(String(FPSTR(R_update)).c_str(), HTTP_GET, std::bind(&WiFiManager::handleUpdate, this, true));
+  server->on(String(FPSTR(R_update)).c_str(), HTTP_POST, std::bind(&WiFiManager::handleUpdate, this, false), std::bind(&WiFiManager::handleUpdateUpload, this));
   server->on(String(FPSTR(R_erase)).c_str(),      std::bind(&WiFiManager::handleErase, this, false));
   server->on(String(FPSTR(R_status)).c_str(),     std::bind(&WiFiManager::handleWiFiStatus, this));
   server->onNotFound (std::bind(&WiFiManager::handleNotFound, this));
@@ -1485,6 +1487,7 @@ void WiFiManager::handleInfo() {
     if(infoids[i] != NULL) page += getInfoData(infoids[i]);
   }
   page += F("</dl>");
+  page += FPSTR(HTTP_UPDATEBTN);
   if(_showInfoErase) page += FPSTR(HTTP_ERASEBTN);
   page += FPSTR(HTTP_HELP);
   page += FPSTR(HTTP_END);
@@ -1714,6 +1717,62 @@ void WiFiManager::handleReset() {
   DEBUG_WM(F("RESETTING ESP"));
   delay(1000);
   reboot();
+}
+
+/**
+ * HTTPD CALLBACK update page
+ */
+void WiFiManager::handleUpdate(boolean getRequest) {
+  DEBUG_WM(DEBUG_VERBOSE,F("<- HTTP Update"));
+  handleRequest();
+  if (getRequest) {
+    String page = getHTTPHead(FPSTR(S_titleupdate)); //@token titlereset
+    page += FPSTR(HTTP_UPDATEFORM);
+    page += FPSTR(HTTP_END);
+
+    server->sendHeader(FPSTR(HTTP_HEAD_CL), String(page.length()));
+    server->send(200, FPSTR(HTTP_HEAD_CT), page);
+  } else {
+    server->client().setNoDelay(true);
+    String page = getHTTPHead(FPSTR(S_titleupdate)); //@token titlereset
+    page += Update.hasError() ? FPSTR(HTTP_UPDATEFAILED) : FPSTR(HTTP_UPDATESUCCES);
+    page += FPSTR(HTTP_END);
+
+    server->sendHeader(FPSTR(HTTP_HEAD_CL), String(page.length()));
+    server->send(200, FPSTR(HTTP_HEAD_CT), page);
+  }
+}
+
+/**
+ * HTTPD CALLBACK update upload
+ */
+void WiFiManager::handleUpdateUpload() {
+  HTTPUpload& upload = server->upload();
+  if (upload.status == UPLOAD_FILE_START) {
+    if (_debug) {
+      Serial.setDebugOutput(true);
+    }
+    DEBUG_WM(F("Update: "));
+    DEBUG_WM(upload.filename.c_str());
+    if (!Update.begin()) { //start with max available size
+      if (_debug) { Update.printError(Serial); }
+    }
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize && _debug) {
+      Update.printError(Serial);
+    }
+  } else if (upload.status == UPLOAD_FILE_END) {
+    if (Update.end(true)) { //true to set the size to the current progress
+      DEBUG_WM(F("Update Success: "));
+      DEBUG_WM(upload.totalSize);
+      DEBUG_WM(F("\nRebooting...\n"));
+    } else if (_debug) {
+      Update.printError(Serial);
+    }
+    if (_debug) {
+      Serial.setDebugOutput(false);
+    }
+  }
 }
 
 /** 
@@ -2715,3 +2774,4 @@ void WiFiManager::WiFi_autoReconnect(){
 }
 
 #endif
+
