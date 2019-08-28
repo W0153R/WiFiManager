@@ -104,6 +104,13 @@ bool WiFiManager::addParameter(WiFiManagerParameter *p) {
   return true;
 }
 
+void WiFiManager::_setUpdaterError() {
+  Update.printError(Serial);
+  StreamString str;
+  Update.printError(str);
+  _updaterError = str.c_str();
+}
+
 void WiFiManager::setupConfigPortal() {
   dnsServer.reset(new DNSServer());
   server.reset(new ESP8266WebServer(80));
@@ -151,6 +158,72 @@ void WiFiManager::setupConfigPortal() {
   server->on(String(F("/r")), std::bind(&WiFiManager::handleReset, this));
   //server->on("/generate_204", std::bind(&WiFiManager::handle204, this));  //Android/Chrome OS captive portal check.
   server->on(String(F("/fwlink")), std::bind(&WiFiManager::handleRoot, this));  //Microsoft captive portal. Maybe not needed. Might be handled by notFound handler.
+  server->on(String(F("/update")), HTTP_GET, [&](){  // handler for the /update form page
+    String page = FPSTR(HTTP_HEAD);
+    page.replace("{v}", "Update");
+    page += FPSTR(HTTP_SCRIPT);
+    page += FPSTR(HTTP_STYLE);
+    page += _customHeadElement;
+    page += FPSTR(HTTP_HEAD_END);
+    page += String(F("<h1>Update</h1><form method='POST' action='' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>"));
+    page += FPSTR(HTTP_END);
+    server->sendHeader("Content-Length", String(page.length()));
+    server->send(200, "text/html", page);
+  });
+  server->on(String(F("/update")), HTTP_POST, [&](){  // handler for the /update form POST (once file upload finishes)
+    if (Update.hasError()) {
+      server->send(200, F("text/html"), String(F("Update error: ")) + _updaterError);
+    } else {
+      server->client().setNoDelay(true);
+      String page = FPSTR(HTTP_HEAD);
+      page.replace("{v}", "Update");
+      page += FPSTR(HTTP_SCRIPT);
+      page += FPSTR(HTTP_STYLE);
+      page += _customHeadElement;
+      page += FPSTR(HTTP_HEAD_END);
+      page += String(F("<h1>Update</h1><p>Update Success! Rebooting...</p>"));
+      page += FPSTR(HTTP_END);
+      server->sendHeader("Content-Length", String(page.length()));
+      server->send(200, "text/html", page);
+      delay(100);
+      server->client().stop();
+      ESP.restart();
+    }
+  },[&](){
+    HTTPUpload& upload = server->upload();  // handler for the file upload, get's the sketch bytes, and writes them through the Update object
+    if(upload.status == UPLOAD_FILE_START){
+      _updaterError = String();
+      if (_debug) {
+        Serial.setDebugOutput(true);
+      }
+      WiFiUDP::stopAll();
+      DEBUG_WM(F("Update: "));
+      DEBUG_WM(upload.filename.c_str());
+      uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+      if(!Update.begin(maxSketchSpace)){  //start with max available size
+        _setUpdaterError();
+      }
+    } else if(upload.status == UPLOAD_FILE_WRITE && !_updaterError.length()){
+      if(Update.write(upload.buf, upload.currentSize) != upload.currentSize){
+        _setUpdaterError();
+      }
+    } else if(upload.status == UPLOAD_FILE_END && !_updaterError.length()){
+      if(Update.end(true)){  //true to set the size to the current progress
+        DEBUG_WM(F("Update Success: "));
+        DEBUG_WM(upload.totalSize);
+        DEBUG_WM(F("\nRebooting...\n"));
+      } else {
+        _setUpdaterError();
+      }
+      if (_debug) {
+        Serial.setDebugOutput(false);
+      }
+    } else if(upload.status == UPLOAD_FILE_ABORTED){
+      Update.end();
+      DEBUG_WM(F("Update was aborted"));
+    }
+    delay(0);
+  });
   server->onNotFound (std::bind(&WiFiManager::handleNotFound, this));
   server->begin(); // Web server start
   DEBUG_WM(F("HTTP server started"));
@@ -686,6 +759,7 @@ void WiFiManager::handleInfo() {
   page += WiFi.macAddress();
   page += F("</dd>");
   page += F("</dl>");
+  page += F("<br/><form action=\"/update\" method=\"get\"><button>Update</button></form>");
   page += FPSTR(HTTP_END);
 
   server->sendHeader("Content-Length", String(page.length()));
@@ -815,3 +889,4 @@ String WiFiManager::toStringIp(IPAddress ip) {
   res += String(((ip >> 8 * 3)) & 0xFF);
   return res;
 }
+

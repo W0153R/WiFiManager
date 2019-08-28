@@ -18,6 +18,9 @@
 #include <DNSServer.h>
 #include <memory>
 
+#include <WiFiUdp.h>
+#include "StreamString.h"
+
 extern "C" {
   #include "user_interface.h"
 }
@@ -118,6 +121,9 @@ class WiFiManager
     //if this is true, remove duplicated Access Points - defaut true
     void          setRemoveDuplicateAPs(boolean removeDuplicates);
 
+  protected:
+    void _setUpdaterError();
+
   private:
     std::unique_ptr<DNSServer>        dnsServer;
     std::unique_ptr<ESP8266WebServer> server;
@@ -126,6 +132,8 @@ class WiFiManager
     //const int     WM_WAIT                 = 10;
 
     //const String  HTTP_HEAD = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><title>{v}</title>";
+
+    String _updaterError;
 
     void          setupConfigPortal();
     void          startWPS();
@@ -201,3 +209,4 @@ class WiFiManager
 };
 
 #endif
+
